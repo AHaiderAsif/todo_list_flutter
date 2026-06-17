@@ -13,6 +13,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+
   final _todoController = TextEditingController();
   String _selectedCategory = 'Code';
 
@@ -22,13 +23,12 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
+  //Save task when user clicks the save button inside the modal sheet
   void _handleSaveTask(BuildContext context) async {
     if (_todoController.text.trim().isEmpty) return;
-
     final todoProv = context.read<TodoProvider>();
     String title = _todoController.text.trim();
     String category = _selectedCategory;
-
     Navigator.pop(context);
     await todoProv.createNewTask(title, category);
     _todoController.clear();
@@ -40,6 +40,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final todoProvider = context.watch<TodoProvider>();
 
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       backgroundColor: const Color(0xFFF4F7F6),
       body: Stack(
         children: [
@@ -59,6 +60,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
+          // Main Screen Content Container
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -75,7 +77,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         children: [
                           Text(
                             'Assalam-o-Alaikum,',
-                            style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 16),
+                            style: TextStyle(color: Colors.white.withAlpha(20), fontSize: 16),
                           ),
                           const Text(
                             'My Workspace',
@@ -83,6 +85,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ],
                       ),
+                      //Firebase Logout Button
                       Container(
                         decoration: const BoxDecoration(
                           color: Colors.white24,
@@ -90,6 +93,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         child: IconButton(
                           onPressed: () async {
+                            // Signout execution via Firebase Auth instance
                             await FirebaseAuth.instance.signOut();
                           },
                           icon: const Icon(Iconsax.logout, color: Colors.white, size: 24),
@@ -100,11 +104,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
                   const SizedBox(height: 40),
 
-                  // 🔥 STABLE STREAM CONNECTOR VIA PROVIDER STREAM
+                  //Listening to Firestore data updates in real-time
                   StreamBuilder<QuerySnapshot>(
-                    stream: todoProvider.tasksStream, // Isko provider ke getter se hi chalne dein
+                    stream: todoProvider.tasksStream,
                     builder: (context, snapshot) {
-                      // Agar snapshot abhi tak connect nahi hua ya active nahi hai
+                      // 1. Loading State: Display loader if Firebase connection is fetching data
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return const Center(
                           child: Padding(
@@ -113,8 +117,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         );
                       }
-
                       final docs = snapshot.data?.docs ?? [];
+
+                      //Calculate dashboard stats using basic iterations
                       int total = docs.length;
                       int completed = docs.where((doc) => doc['isDone'] == true).length;
                       int pending = total - completed;
@@ -122,6 +127,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          //Summary Scorecard Widget UI
                           Container(
                             width: double.infinity,
                             padding: const EdgeInsets.all(20),
@@ -139,11 +145,32 @@ class _HomeScreenState extends State<HomeScreen> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceAround,
                               children: [
-                                _buildStatItem('Total Tasks', total.toString(), Colors.blue),
+                                // Total Items Summary Column
+                                Column(
+                                  children: [
+                                    Text(total.toString(), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.blue)),
+                                    const SizedBox(height: 4),
+                                    Text('Total Tasks', style: TextStyle(fontSize: 12, color: Colors.grey.shade500, fontWeight: FontWeight.w500)),
+                                  ],
+                                ),
                                 Container(width: 1, height: 40, color: Colors.grey.shade200),
-                                _buildStatItem('Completed', completed.toString(), Colors.green),
+                                // Completed Items Summary Column
+                                Column(
+                                  children: [
+                                    Text(completed.toString(), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.green)),
+                                    const SizedBox(height: 4),
+                                    Text('Completed', style: TextStyle(fontSize: 12, color: Colors.grey.shade500, fontWeight: FontWeight.w500)),
+                                  ],
+                                ),
                                 Container(width: 1, height: 40, color: Colors.grey.shade200),
-                                _buildStatItem('Pending', pending.toString(), Colors.orange),
+                                // Pending Items Summary Column
+                                Column(
+                                  children: [
+                                    Text(pending.toString(), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.orange)),
+                                    const SizedBox(height: 4),
+                                    Text('Pending', style: TextStyle(fontSize: 12, color: Colors.grey.shade500, fontWeight: FontWeight.w500)),
+                                  ],
+                                ),
                               ],
                             ),
                           ),
@@ -155,6 +182,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           const SizedBox(height: 15),
 
+                          //Dynamic Task List
                           SizedBox(
                             height: size.height * 0.45,
                             child: docs.isEmpty
@@ -172,12 +200,28 @@ class _HomeScreenState extends State<HomeScreen> {
                               itemCount: docs.length,
                               padding: const EdgeInsets.only(bottom: 20),
                               itemBuilder: (context, index) {
+                                // Extract details for individual task row item
                                 final todo = docs[index];
                                 String docId = todo.id;
                                 String title = todo['title'] ?? '';
                                 bool isDone = todo['isDone'] ?? false;
                                 String category = todo['category'] ?? 'Code';
 
+                                //Dynamic chip color
+                                Color categoryColor;
+                                if (category == 'Code') {
+                                  categoryColor = Colors.deepPurple;
+                                } else if (category == 'Uni') {
+                                  categoryColor = Colors.blue;
+                                } else if (category == 'Bug') {
+                                  categoryColor = Colors.red;
+                                } else if (category == 'Gaming') {
+                                  categoryColor = Colors.orange;
+                                } else {
+                                  categoryColor = Colors.blueGrey;
+                                }
+
+                                // Single Row Task Display Box Layout
                                 return Container(
                                   margin: const EdgeInsets.only(bottom: 12),
                                   decoration: BoxDecoration(
@@ -189,7 +233,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     ),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: Colors.black.withOpacity(0.02),
+                                        color: Colors.black.withAlpha(10),
                                         blurRadius: 10,
                                         offset: const Offset(0, 4),
                                       )
@@ -223,28 +267,30 @@ class _HomeScreenState extends State<HomeScreen> {
                                         fontSize: 15,
                                         fontWeight: FontWeight.w500,
                                         color: isDone ? Colors.grey.shade400 : const Color(0xFF2C3E50),
-                                        decoration: isDone ? TextDecoration.lineThrough : null,
+                                        decoration: isDone ? TextDecoration.lineThrough : null, // Strikethrough effect if done
                                       ),
                                     ),
                                     trailing: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
+                                        // Category Chip Layout Box
                                         Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                           decoration: BoxDecoration(
-                                            color: _getCategoryColor(category).withOpacity(0.1),
+                                            color: categoryColor.withAlpha(20),
                                             borderRadius: BorderRadius.circular(20),
                                           ),
                                           child: Text(
                                             category,
                                             style: TextStyle(
-                                              color: _getCategoryColor(category),
+                                              color: categoryColor,
                                               fontSize: 11,
                                               fontWeight: FontWeight.bold,
                                             ),
                                           ),
                                         ),
                                         const SizedBox(width: 5),
+                                        // LOGIC: Delete Action via Trash Icon Button
                                         IconButton(
                                           onPressed: () => todoProvider.removeTask(docId),
                                           icon: const Icon(Iconsax.trash, color: Colors.redAccent, size: 20),
@@ -266,6 +312,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
+      // Action Trigger to launch contextual bottom modal input sheet
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showAddTaskBottomSheet(context),
         backgroundColor: const Color(0xFF11998e),
@@ -276,26 +323,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildStatItem(String label, String value, Color color) {
-    return Column(
-      children: [
-        Text(value, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: color)),
-        const SizedBox(height: 4),
-        Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade500, fontWeight: FontWeight.w500)),
-      ],
-    );
-  }
-
-  Color _getCategoryColor(String category) {
-    switch (category) {
-      case 'Code': return Colors.deepPurple;
-      case 'Uni': return Colors.blue;
-      case 'Bug': return Colors.red;
-      case 'Gaming': return Colors.orange;
-      default: return Colors.blueGrey;
-    }
-  }
-
+  //Bottom Sheet
   void _showAddTaskBottomSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -329,16 +357,25 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 20),
                     const Text('Select Category:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                     const SizedBox(height: 10),
+                    // Mapping a list array  choice chips
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: ['Code', 'Uni', 'Bug', 'Gaming'].map((cat) {
                         final isSelected = _selectedCategory == cat;
+
+                        Color chipsColor;
+                        if (cat == 'Code') chipsColor = Colors.deepPurple;
+                        else if (cat == 'Uni') chipsColor = Colors.blue;
+                        else if (cat == 'Bug') chipsColor = Colors.red;
+                        else if (cat == 'Gaming') chipsColor = Colors.orange;
+                        else chipsColor = Colors.blueGrey;
+
                         return ChoiceChip(
                           label: Text(cat),
                           selected: isSelected,
-                          selectedColor: _getCategoryColor(cat).withOpacity(0.2),
+                          selectedColor: chipsColor.withAlpha(20),
                           labelStyle: TextStyle(
-                              color: isSelected ? _getCategoryColor(cat) : Colors.black87,
+                              color: isSelected ? chipsColor : Colors.black87,
                               fontWeight: FontWeight.bold
                           ),
                           onSelected: (bool selected) {
